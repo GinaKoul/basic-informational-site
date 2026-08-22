@@ -4,55 +4,98 @@ const fs = require("node:fs/promises");
 // Create a local server to receive data from
 const server = http.createServer();
 
-// Async function that tries to read file and returns equivalent error when the procedure fails
-const readFile = async (filepath) => {
+// Async function that tries to read file and returns a custom error when the procedure fails
+const readFile = async (filepath, contentType) => {
   try {
     // Read file using the fs promise based module and return it
-    return await fs.readFile(filepath, { encoding: "utf8" });
-  } catch (error) {
+    return (await contentType.split("/").shift()) == "image"
+      ? fs.readFile(filepath)
+      : fs.readFile(filepath, { encoding: "utf8" });
+  } catch (err) {
     // Throw an error to inform that attempt to read the file failed
-    throw new Error(`Failed to read file ${filepath}. Error message: ${error}`);
+    throw new Error(`Failed to read file ${filepath}. Error message: ${err}`);
   }
 };
 
-/*Async function that calls readFile to get requested page 
-that returns Page 404 if requested page is not found 
-and returns a string with text 404 Page Not Found 
-if Page 404 is not available*/
+/* Function that returns a map containing the status code
+  and the filename of the requested html page*/
+const getResponseInfo = (pathName) => {
+  //Create map to store status code of response and name of file to read
+  const map = new Map();
+
+  // Change request status code to 200 (OK)
+  map.set("status-code", 200);
+  // Set content-type in map to text/html since the returned data are html files
+  map.set("content-type", "text/html");
+
+  switch (pathName) {
+    case "/":
+      // Set file name to read to index.html when the url pathname is /
+      map.set("filename", "index.html");
+      break;
+    case "/about":
+      // Set file name to read to about.html when the url pathname is /about
+      map.set("filename", "about.html");
+      break;
+    case "/contact":
+      // Set file name to read to contact-me.html when the url pathname is /contact
+      map.set("filename", "contact-me.html");
+      break;
+    case "/styles":
+      // Set content-type in map to text/css since the returned data are css files
+      map.set("content-type", "text/css");
+      // Set file name to read to contact-me.html when the url pathname is /contact
+      map.set("filename", "styles.css");
+      break;
+    case "/hero":
+      // Set content-type in map to image/webp since the returned data is an image
+      map.set("content-type", "image/webp");
+      // Set file name to read to contact-me.html when the url pathname is /contact
+      map.set("filename", "hero-bg.webp");
+      break;
+    default:
+      // Change request status code to 404 (NOT FOUND)
+      map.set("status-code", 404);
+      // Set file name to read to 404.html when the requested page is not found
+      map.set("filename", "404.html");
+      break;
+  }
+  return map;
+};
+
+/*Async function that handles http request */
 const httpGetRequest = async (request, res) => {
   //Variable declaration
-  let data;
-  let statusCode;
+  const responseInfo = getResponseInfo(request.url);
 
   try {
-    console.log(request);
-    // Attempt to read file index.html
-    data = await readFile("index.html");
-
-    // Change request status code to 200 (OK)
-    statusCode = 200;
+    // Attempt to read file index.html and store returned data in map as data
+    responseInfo.set(
+      "data",
+      await readFile(
+        responseInfo.get("filename"),
+        responseInfo.get("content-type"),
+      ),
+    );
   } catch (err) {
     // Show error related to read file attempt in the console
     console.error(err);
 
-    // Change request status code to 404 (NOT FOUND)
-    statusCode = 404;
+    // Change status code to 500 (INTERNAL SERVER ERROR)
+    responseInfo.set("status-code", 500);
 
-    try {
-      // Attempt to read file 404.html and save response content to data variable
-      data = await readFile("404.html");
-    } catch (error) {
-      // Show error related to read file 404.html attempt in the console
-      console.error(error);
-
-      // Assign string 404 Page Not Found to data variable after fail to retrieve 404 Page
-      data = "404 Page Not Found";
-    }
+    // Set content-type in map to application/json since we are returning a string
+    responseInfo.set("content-type", "application/json");
+    // Update data to string containing error message
+    responseInfo.set("data", JSON.stringify("500 INTERNAL SERVER ERROR"));
   } finally {
     // Specify response header status code for GET request and text/html subtype as accepted content types
-    res.writeHead(statusCode, { text: "text/html" });
+    res.writeHead(responseInfo.get("status-code"), {
+      "Content-Type": responseInfo.get("content-type"),
+    });
+
     // Specify request body which contains the data returned from reading file 404.html
-    res.end(JSON.stringify(data));
+    res.end(responseInfo.get("data"));
   }
 };
 
@@ -60,4 +103,4 @@ const httpGetRequest = async (request, res) => {
 server.on("request", httpGetRequest);
 
 // Tell the server to listen to localhost: 8000
-server.listen(8000);
+server.listen(8080);
