@@ -1,8 +1,6 @@
-const http = require("node:http");
 const fs = require("node:fs/promises");
-
-// Create a local server to receive data from
-const server = http.createServer();
+const express = require("express");
+const app = express();
 
 // Async function that tries to read file and returns a custom error when the procedure fails
 const readFile = async (filepath, contentType) => {
@@ -17,90 +15,92 @@ const readFile = async (filepath, contentType) => {
   }
 };
 
-/* Function that returns a map containing the status code
-  and the filename of the requested html page*/
-const getResponseInfo = (pathName) => {
-  //Create map to store status code of response and name of file to read
-  const map = new Map();
-
-  // Change request status code to 200 (OK)
-  map.set("status-code", 200);
-  // Set content-type in map to text/html since the returned data are html files
-  map.set("content-type", "text/html");
-
-  switch (pathName) {
-    case "/":
-      // Set file name to read to index.html when the url pathname is /
-      map.set("filename", "index.html");
-      break;
-    case "/about":
-      // Set file name to read to about.html when the url pathname is /about
-      map.set("filename", "about.html");
-      break;
-    case "/contact":
-      // Set file name to read to contact-me.html when the url pathname is /contact
-      map.set("filename", "contact-me.html");
-      break;
-    case "/styles":
-      // Set content-type in map to text/css since the returned data are css files
-      map.set("content-type", "text/css");
-      // Set file name to read to contact-me.html when the url pathname is /contact
-      map.set("filename", "styles.css");
-      break;
-    case "/hero":
-      // Set content-type in map to image/webp since the returned data is an image
-      map.set("content-type", "image/webp");
-      // Set file name to read to contact-me.html when the url pathname is /contact
-      map.set("filename", "hero-bg.webp");
-      break;
-    default:
-      // Change request status code to 404 (NOT FOUND)
-      map.set("status-code", 404);
-      // Set file name to read to 404.html when the requested page is not found
-      map.set("filename", "404.html");
-      break;
-  }
-  return map;
-};
-
-/*Async function that handles http request */
-const httpGetRequest = async (request, res) => {
-  //Variable declaration
-  const responseInfo = getResponseInfo(request.url);
-
+// Handle GET request to path /
+app.get("/", async (req, res) => {
   try {
-    // Attempt to read file index.html and store returned data in map as data
-    responseInfo.set(
-      "data",
-      await readFile(
-        responseInfo.get("filename"),
-        responseInfo.get("content-type"),
-      ),
-    );
+    let responseData = await readFile("index.html", "text/html");
+    res.type("html"); // Change content type to text/html
+    res.status(200); // Change status code to 200 (OK)
+    res.end(responseData);
   } catch (err) {
-    // Show error related to read file attempt in the console
-    console.error(err);
-
-    // Change status code to 500 (INTERNAL SERVER ERROR)
-    responseInfo.set("status-code", 500);
-
-    // Set content-type in map to application/json since we are returning a string
-    responseInfo.set("content-type", "application/json");
-    // Update data to string containing error message
-    responseInfo.set("data", JSON.stringify("500 INTERNAL SERVER ERROR"));
-  } finally {
-    // Specify response header status code for GET request and text/html subtype as accepted content types
-    res.writeHead(responseInfo.get("status-code"), {
-      "Content-Type": responseInfo.get("content-type"),
-    });
-
-    // Specify request body which contains the data returned from reading file 404.html
-    res.end(responseInfo.get("data"));
+    next(err);
   }
-};
+});
 
-// Add callback to http request event
-server.on("request", httpGetRequest);
+// Handle GET request to path /about
+app.get("/about", async (req, res) => {
+  try {
+    let responseData = await readFile("about.html", "text/html");
+    res.type("html"); // Change content type to text/html
+    res.status(200); // Change status code to 200 (OK)
+    res.end(responseData);
+  } catch (err) {
+    next(err);
+  }
+});
 
-// Tell the server to listen to localhost: 8000
-server.listen(8080);
+// Handle GET request to path /contact
+app.get("/contact", async (req, res) => {
+  try {
+    let responseData = await readFile("contact-me.html", "text/html");
+    res.type("html"); // Change content type to text/html
+    res.status(200); // Change status code to 200 (OK)
+    res.end(responseData);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Handle GET request to path /styles
+app.get("/styles", async (req, res) => {
+  try {
+    let responseData = await readFile("styles.css", "text/css");
+    res.type("css"); // Change content type to text/css
+    res.status(200); // Change status code to 200 (OK)
+    res.end(responseData);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Handle GET request to path /hero
+app.get("/hero", async (req, res) => {
+  try {
+    let responseData = await readFile("hero-bg.webp", "image/webp");
+    res.type("webp"); // Change content type to image/webp
+    res.status(200); // Change status code to 200 (OK)
+    res.end(responseData);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Handle all GET requests to any other path
+app.get(/.*/, async (req, res) => {
+  try {
+    let responseData = await readFile("404.html", "text/html");
+    res.type("html"); // Change content type to text/html
+    res.status(404); // Change status code to 404 (NOT FOUND)
+    res.end(responseData);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.use((err, req, res, next) => {
+  console.error(err.stack); // Show error related to read file attempt in the console
+  res.type("html"); // Change content type to application/json
+  res.status(500); // Change status code to 500 (INTERNAL SERVER ERROR)
+  res.send("500 INTERNAL SERVER ERROR");
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, (error) => {
+  // This is important!
+  // Without this, any startup errors will silently fail
+  // instead of giving you a helpful error message.
+  if (error) {
+    throw error;
+  }
+  console.log(`My first Express app - listening on port ${PORT}!`);
+});
