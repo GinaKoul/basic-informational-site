@@ -16,7 +16,7 @@ const readFile = async (filepath, contentType) => {
 };
 
 // Handle GET request to path /
-app.get("/", async (req, res) => {
+app.get("/{home}", async (req, res) => {
   try {
     let responseData = await readFile("index.html", "text/html");
     res.type("html"); // Change content type to text/html
@@ -76,7 +76,7 @@ app.get("/hero", async (req, res) => {
 });
 
 // Handle all GET requests to any other path
-app.get(/.*/, async (req, res) => {
+app.get("/{*splat}", async (req, res) => {
   try {
     let responseData = await readFile("404.html", "text/html");
     res.type("html"); // Change content type to text/html
