@@ -87,9 +87,10 @@ app.get("/{*splat}", async (req, res) => {
   }
 });
 
+// Error middleware function
 app.use((err, req, res, next) => {
   console.error(err.stack); // Show error related to read file attempt in the console
-  res.type("html"); // Change content type to application/json
+  res.type("html"); // Change content type to text/html
   res.status(500); // Change status code to 500 (INTERNAL SERVER ERROR)
   res.send("500 INTERNAL SERVER ERROR");
 });
